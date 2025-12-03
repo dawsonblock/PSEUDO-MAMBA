@@ -44,12 +44,12 @@ Run a quick benchmark to verify your installation:
 bash scripts/test_all.sh
 ```
 
-Run a full training session on the **Copy Memory** task with a **Mamba** controller:
+Run a full benchmark suite (all tasks, all controllers):
 
 ```bash
-python -m pseudo_mamba.benchmarks.benchmark_runner \
-    --task copy_memory \
-    --controller mamba \
+python -m pseudo_mamba.benchmarks.pseudo_mamba_benchmark \
+    --envs delayed_cue copy_memory \
+    --controllers gru mamba pseudo_mamba \
     --num_envs 64 \
     --total_updates 1000
 ```
