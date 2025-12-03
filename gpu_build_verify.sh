@@ -68,6 +68,14 @@ pip install -e . --no-build-isolation
 echo -e "${GREEN}✓ Build complete${NC}"
 echo ""
 
+# Build pseudo_mamba_ext
+echo "Building pseudo_mamba_ext..."
+cd pseudo_mamba_ext
+pip install -e .
+cd ..
+echo -e "${GREEN}✓ Extension build complete${NC}"
+echo ""
+
 echo "============================================================="
 echo "Phase 2: API Verification"
 echo "============================================================="
@@ -85,17 +93,25 @@ python test_state_management.py
 
 echo ""
 echo "============================================================="
-echo "Phase 3: RL Benchmark Quick Test"
+echo "Phase 3: RL Benchmark Suite Test"
 echo "============================================================="
 
-echo "Running quick RL benchmark (Mamba, 5K horizon)..."
-python neural_memory_mamba_long_rl.py \
-    --mode quick \
-    --controller mamba \
-    --horizon 5000 \
-    --num-bits 4 \
-    --total-updates 200 \
-    --log-interval 40
+echo "Running unified benchmark suite (Real Mamba)..."
+python pseudo_mamba_memory_suite.py \
+    --env delayed_cue \
+    --controller real_mamba \
+    --horizon 200 \
+    --num_envs 16 \
+    --total_updates 50
+
+echo ""
+echo "Running unified benchmark suite (Pseudo-Mamba Ext)..."
+python pseudo_mamba_memory_suite.py \
+    --env delayed_cue \
+    --controller pseudo_mamba_ext \
+    --horizon 200 \
+    --num_envs 16 \
+    --total_updates 50
 
 echo ""
 echo "============================================================="
@@ -103,13 +119,12 @@ echo "Phase 4: GRU Baseline Comparison"
 echo "============================================================="
 
 echo "Running GRU baseline..."
-python neural_memory_mamba_long_rl.py \
-    --mode quick \
+python pseudo_mamba_memory_suite.py \
+    --env delayed_cue \
     --controller gru \
-    --horizon 5000 \
-    --num-bits 4 \
-    --total-updates 200 \
-    --log-interval 40
+    --horizon 200 \
+    --num_envs 16 \
+    --total_updates 50
 
 echo ""
 echo "============================================================="
@@ -119,8 +134,8 @@ echo ""
 echo -e "${GREEN}All tests passed!${NC}"
 echo ""
 echo "Next steps:"
-echo "  1. Run scaling experiment:"
-echo "     python neural_memory_mamba_long_rl.py --mode scale"
+echo "  1. Run full benchmark:"
+echo "     python pseudo_mamba_memory_suite.py --env copy_memory --controller real_mamba --horizon 2000"
 echo ""
 echo "  2. Integrate into your project"
 echo ""
