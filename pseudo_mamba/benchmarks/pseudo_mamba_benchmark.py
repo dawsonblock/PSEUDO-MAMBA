@@ -21,7 +21,7 @@ import argparse
 import json
 import os
 import time
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import torch
 import numpy as np
@@ -42,6 +42,12 @@ from pseudo_mamba.envs.multi_cue_delay import MultiCueDelayEnv
 from pseudo_mamba.envs.permuted_copy import PermutedCopyEnv
 from pseudo_mamba.envs.pattern_binding import PatternBindingEnv
 from pseudo_mamba.envs.distractor_nav import DistractorNavEnv
+
+try:
+    import wandb
+    HAS_WANDB = True
+except ImportError:
+    HAS_WANDB = False
 
 TASK_MAP = {
     "delayed_cue": DelayedCueEnv,
@@ -73,16 +79,29 @@ def train(
     lr: float,
     value_coef: float,
     entropy_coef: float,
+    use_wandb: bool = False,
+    mamba_d_state: int = 16,
+    mamba_d_conv: int = 4,
+    mamba_expand: int = 2,
 ) -> Dict[str, Any]:
+    
+    if use_wandb and HAS_WANDB:
+        wandb.init(
+            project="pseudo-mamba-benchmarks",
+            config={
+                "env": env_name,
+                "controller": controller,
+                "horizon": horizon,
+                "hidden_dim": hidden_dim,
+                "lr": lr,
+                "mamba_d_state": mamba_d_state,
+                "mamba_d_conv": mamba_d_conv
+            },
+            reinit=True
+        )
     
     # Init Env
     env_cls = TASK_MAP[env_name]
-    # Assuming envs take horizon as arg if applicable, or we might need to adjust envs
-    # For now, we use default args or kwargs if env supports them
-    # Most of our envs have hardcoded horizons or defaults, let's assume defaults for now
-    # or update envs to accept horizon. 
-    # The user's prompt implies envs are configurable.
-    # Let's pass horizon if the env accepts it, otherwise ignore.
     try:
         env = env_cls(batch_size=num_envs, device=device, sequence_length=horizon)
     except TypeError:
@@ -90,11 +109,21 @@ def train(
     
     # Init Controller
     controller_cls = CONTROLLER_MAP[controller]
-    model_core = controller_cls(
-        input_dim=env.obs_dim,
-        hidden_dim=hidden_dim,
-        feature_dim=hidden_dim
-    )
+    
+    ctrl_kwargs = {
+        "input_dim": env.obs_dim,
+        "hidden_dim": hidden_dim,
+        "feature_dim": hidden_dim
+    }
+    
+    if controller == "mamba":
+        ctrl_kwargs.update({
+            "d_state": mamba_d_state,
+            "d_conv": mamba_d_conv,
+            "expand": mamba_expand
+        })
+        
+    model_core = controller_cls(**ctrl_kwargs)
     
     # Init ActorCritic
     model = ActorCritic(model_core, act_dim=env.act_dim).to(device)
@@ -111,7 +140,6 @@ def train(
     ppo.set_scheduler(total_updates)
     
     # Init Buffer
-    # Rollout steps usually = horizon or a fixed chunk
     rollout_steps = min(horizon, 128) 
     buffer = RolloutBuffer(
         num_steps=rollout_steps,
@@ -148,9 +176,6 @@ def train(
             
             if done.any():
                 state = model.reset_mask(state, done)
-                # Track returns if available in info? 
-                # Our envs don't currently return episode return in info.
-                # We can approximate with buffer rewards.
         
         with torch.no_grad():
             _, last_value, _ = model.forward_step(obs, state)
@@ -161,6 +186,18 @@ def train(
         avg_reward = buffer.rewards.sum() / num_envs
         completed_returns.append(avg_reward.item())
         
+        if use_wandb and HAS_WANDB:
+            wandb.log({
+                "reward": avg_reward.item(),
+                "loss": metrics["loss"],
+                "pg_loss": metrics["pg_loss"],
+                "val_loss": metrics["val_loss"],
+                "entropy": metrics["entropy"],
+                "lr": metrics["lr"],
+                "grad_norm": metrics["grad_norm"],
+                "explained_var": metrics["explained_var"]
+            }, step=update)
+        
         if update % 50 == 0:
              print(f"[{update:05d}] env={env_name} ctrl={controller} "
                   f"loss={metrics['loss']:.3f} "
@@ -168,6 +205,9 @@ def train(
                   f"lr={metrics['lr']:.6f}")
 
     final_avg_return = float(np.mean(completed_returns[-100:])) if len(completed_returns) >= 100 else float(np.mean(completed_returns))
+    
+    if use_wandb and HAS_WANDB:
+        wandb.finish()
     
     return {
         "env": env_name,
@@ -215,6 +255,13 @@ def parse_args() -> argparse.Namespace:
         default="results/benchmark_summary.json",
         help="Path to write JSON summary.",
     )
+    
+    # Enhancements
+    parser.add_argument("--wandb", action="store_true", help="Use WandB logging")
+    parser.add_argument("--mamba_d_state", type=int, default=16, help="Mamba SSM state dimension")
+    parser.add_argument("--mamba_d_conv", type=int, default=4, help="Mamba Conv1d kernel size")
+    parser.add_argument("--mamba_expand", type=int, default=2, help="Mamba expansion factor")
+    
     return parser.parse_args()
 
 
@@ -254,6 +301,10 @@ def main():
                     lr=args.lr,
                     value_coef=args.value_coef,
                     entropy_coef=args.entropy_coef,
+                    use_wandb=args.wandb,
+                    mamba_d_state=args.mamba_d_state,
+                    mamba_d_conv=args.mamba_d_conv,
+                    mamba_expand=args.mamba_expand
                 )
                 results.append(summary)
             except Exception as e:

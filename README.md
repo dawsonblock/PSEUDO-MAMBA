@@ -51,7 +51,14 @@ python -m pseudo_mamba.benchmarks.pseudo_mamba_benchmark \
     --envs delayed_cue copy_memory \
     --controllers gru mamba pseudo_mamba \
     --num_envs 64 \
-    --total_updates 1000
+    --total_updates 1000 \
+    --wandb
+```
+
+Visualize the results:
+
+```bash
+python scripts/plot_results.py --json results/benchmark_summary.json
 ```
 
 ## 🧠 Supported Controllers

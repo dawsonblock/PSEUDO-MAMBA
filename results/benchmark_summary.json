@@ -2,11 +2,11 @@
   {
     "env": "delayed_cue",
     "controller": "gru",
-    "final_avg_return": 0.34375,
+    "final_avg_return": 0.35625,
     "total_updates": 10,
     "horizon": 32,
     "num_envs": 16,
     "hidden_dim": 128,
-    "wall_time": 2.5000057220458984
+    "wall_time": 2.544203042984009
   }
 ]

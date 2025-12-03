@@ -14,7 +14,8 @@ class MambaController(BaseController):
     Mamba-based controller using the official mamba_ssm library
     with explicit state management patches.
     """
-    def __init__(self, input_dim: int, hidden_dim: int, feature_dim: int, layer_idx: int = 0):
+    def __init__(self, input_dim: int, hidden_dim: int, feature_dim: int, layer_idx: int = 0, 
+                 d_state: int = 16, d_conv: int = 4, expand: int = 2):
         super().__init__(input_dim, hidden_dim, feature_dim)
         
         if not HAS_MAMBA:
@@ -26,9 +27,9 @@ class MambaController(BaseController):
         # Mamba Block
         self.mamba = Mamba(
             d_model=hidden_dim,
-            d_state=16,
-            d_conv=4,
-            expand=2,
+            d_state=d_state,
+            d_conv=d_conv,
+            expand=expand,
             layer_idx=layer_idx
         )
         
