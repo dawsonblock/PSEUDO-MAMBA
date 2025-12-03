@@ -129,10 +129,9 @@ class MemActorCritic(nn.Module):
     Actor-Critic with pluggable memory controller (GRU or Mamba).
 
     For Mamba:
-      - Uses standard sequence forward: y = Mamba(x)
-      - We do not try to manually manage internal conv/SSM caches here;
-        that API is model-specific and error-prone to guess.
-      - This still gives you long effective context within each chunk.
+      - Now uses proper InferenceParams and state management APIs
+      - Can explicitly reset states at episode boundaries
+      - Supports state introspection and analysis
     """
 
     def __init__(self,
@@ -142,18 +141,23 @@ class MemActorCritic(nn.Module):
                  controller: str = "mamba",
                  d_state: int = 16,
                  d_conv: int = 4,
-                 expand: int = 2):
+                 expand: int = 2,
+                 num_envs: int = 64,
+                 max_seqlen: int = 10000):
         super().__init__()
         self.controller = controller.lower()
         self.hidden_dim = hidden_dim
+        self.num_envs = num_envs
 
         self.enc = nn.Linear(obs_dim, hidden_dim)
 
         if self.controller == "gru":
             self.core = nn.GRU(hidden_dim, hidden_dim, batch_first=True)
+            self.inference_params = None
         elif self.controller == "mamba":
             try:
                 from mamba_ssm import Mamba
+                from mamba_ssm.utils.generation import InferenceParams
             except ImportError as e:
                 raise ImportError(
                     "mamba-ssm not installed. Install with:\n"
@@ -164,6 +168,12 @@ class MemActorCritic(nn.Module):
                 d_state=d_state,
                 d_conv=d_conv,
                 expand=expand,
+                layer_idx=0,  # Set layer_idx for state management
+            )
+            # Create InferenceParams for stateful inference
+            self.inference_params = InferenceParams(
+                max_batch_size=num_envs,
+                max_seqlen=max_seqlen
             )
         else:
             raise ValueError(f"Unknown controller: {controller}")
@@ -189,7 +199,13 @@ class MemActorCritic(nn.Module):
         if self.controller == "gru":
             out, h_new = self.core(z, h)
         else:
-            out = self.core(z)
+            # For Mamba, use inference_params for stateful processing
+            if self.inference_params is not None:
+                out = self.core(z, inference_params=self.inference_params)
+                # Increment seqlen_offset for proper state tracking
+                self.inference_params.seqlen_offset += z.shape[1]
+            else:
+                out = self.core(z)
             h_new = None
 
         logits = self.policy_head(out)
@@ -200,6 +216,23 @@ class MemActorCritic(nn.Module):
             value = value.squeeze(1)
 
         return logits, value, h_new
+
+    def reset_mamba_state(self, env_mask: Optional[torch.Tensor] = None):
+        """
+        Reset Mamba state for specified environments (or all if env_mask is None).
+
+        Args:
+            env_mask: Boolean tensor [num_envs], True for envs that need reset.
+                     If None, resets all environments.
+        """
+        if self.controller != "mamba" or self.inference_params is None:
+            return
+
+        # For simplicity, reset all states if any environment needs reset
+        # A more sophisticated implementation could do per-env state masking
+        if env_mask is None or env_mask.any():
+            self.core.zero_inference_state(self.inference_params)
+            self.inference_params.seqlen_offset = 0
 
 
 # ============================================================
@@ -242,10 +275,14 @@ def rollout_chunk(
         rew_buf.append(rew)
         done_buf.append(done.float())
 
-        # Reset GRU hidden on done envs
+        # Reset hidden state on done envs
         if h is not None and done.any():
+            # GRU: mask hidden state
             mask = (~done).float().view(1, B, 1)
             h = h * mask
+        elif done.any():
+            # Mamba: reset inference state
+            model.reset_mamba_state(done)
 
     # Bootstrap with last observation
     _, last_val, _ = model(obs, h)
@@ -361,9 +398,12 @@ def evaluate(
         obs, rew, done = env.step(act)
         correct += rew.sum().item()
 
+        # Reset hidden state on done envs
         if h is not None and done.any():
             mask = (~done).float().view(1, env.num_envs, 1)
             h = h * mask
+        elif done.any():
+            model.reset_mamba_state(done)
 
     model.train()
     return correct / max(queries, 1.0)
@@ -395,6 +435,8 @@ def run_quick(config: Dict[str, Any]) -> None:
         d_state=config["d_state"],
         d_conv=config["d_conv"],
         expand=config["expand"],
+        num_envs=config["num_envs"],
+        max_seqlen=config["horizon"] * 2,  # Conservative estimate
     ).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
@@ -462,6 +504,8 @@ def run_scale_experiment(config: Dict[str, Any]) -> None:
                 d_state=config["d_state"],
                 d_conv=config["d_conv"],
                 expand=config["expand"],
+                num_envs=config["num_envs"],
+                max_seqlen=horizon * 2,
             ).to(device)
 
             optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])

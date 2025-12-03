@@ -112,6 +112,47 @@ def selective_scan_fn(u, delta, A, B, C, D=None, z=None, delta_bias=None, delta_
     return SelectiveScanFn.apply(u, delta, A, B, C, D, z, delta_bias, delta_softplus, return_last_state)
 
 
+def selective_scan_stateful_fn(
+    u,
+    delta,
+    A,
+    B,
+    C,
+    D=None,
+    z=None,
+    delta_bias=None,
+    x0=None,
+    delta_softplus=True,
+):
+    """
+    Explicitly stateful selective scan using the fwd_with_state C++ path.
+
+    Args:
+        u:     [B, D, L]
+        delta: [B, D, L]
+        A:     [D, N]
+        B, C:  various shapes as in standard selective_scan
+        D:     optional [D]
+        z:     optional gating [B, D, L]
+        delta_bias: optional [D]
+        x0:    initial state [B, D, 2*N] (or None for zero init)
+        delta_softplus: bool
+
+    Returns:
+        out:   [B, D, L]
+        xT:    final state [B, D, 2*N]
+    """
+    if selective_scan_cuda is None:
+        raise RuntimeError("selective_scan_cuda is not available")
+
+    # If no initial state provided, it will be ignored by C++ (assumes zero)
+    # The C++ code expects x0 to be optional
+    out, xT = selective_scan_cuda.fwd_with_state(
+        u, delta, A, B, C, D, z, delta_bias, x0, delta_softplus, True  # return_last_state=True
+    )
+    return out, xT
+
+
 def selective_scan_ref(u, delta, A, B, C, D=None, z=None, delta_bias=None, delta_softplus=False,
                       return_last_state=False):
     """

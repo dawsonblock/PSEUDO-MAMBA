@@ -319,23 +319,44 @@ class Mamba(nn.Module):
                 ssm_state.zero_()
         return conv_state, ssm_state
 
-    def get_inference_state(
-        self,
-        inference_params=None,
-    ) -> Optional[MambaInferenceState]:
-        """Extract current (conv_state, ssm_state) for this layer.
-        
-        Returns:
-            MambaInferenceState if cache exists, None otherwise.
+    # ------------------------------------------------------------------
+    # Internal cache helper
+    # ------------------------------------------------------------------
+    def _get_cache_tuple(self, inference_params):
+        """
+        Internal: return (conv_state, ssm_state) for this layer from
+        inference_params.key_value_memory_dict, or None if missing.
         """
         if inference_params is None:
             return None
         if not hasattr(inference_params, "key_value_memory_dict"):
             return None
-        if self.layer_idx not in inference_params.key_value_memory_dict:
+        if self.layer_idx is None:
             return None
+        kv_dict = inference_params.key_value_memory_dict
+        if self.layer_idx not in kv_dict:
+            return None
+        # Expect dict[layer_idx] = (conv_state, ssm_state, ...)
+        cache = kv_dict[self.layer_idx]
+        if not isinstance(cache, (list, tuple)) or len(cache) < 2:
+            return None
+        conv_state, ssm_state = cache[0], cache[1]
+        return conv_state, ssm_state
 
-        conv_state, ssm_state = inference_params.key_value_memory_dict[self.layer_idx]
+    def get_inference_state(
+        self,
+        inference_params=None,
+    ) -> Optional[MambaInferenceState]:
+        """Extract current (conv_state, ssm_state) for this layer.
+
+        Returns:
+            MambaInferenceState if cache exists, None otherwise.
+        """
+        cache = self._get_cache_tuple(inference_params)
+        if cache is None:
+            return None
+        conv_state, ssm_state = cache
+
         return MambaInferenceState(
             conv_state=conv_state.detach().clone(),
             ssm_state=ssm_state.detach().clone()
@@ -347,45 +368,66 @@ class Mamba(nn.Module):
         inference_params,
     ) -> None:
         """Overwrite internal state (conv_state, ssm_state) for this layer.
-        
+
         Args:
             state: MambaInferenceState with conv_state and ssm_state
             inference_params: InferenceParams object to update
-            
+
         Raises:
-            ValueError: If shapes don't match expected dimensions
+            ValueError: If inference_params or shapes are invalid.
         """
         if inference_params is None:
             raise ValueError("inference_params is required to set inference state")
         if not hasattr(inference_params, "key_value_memory_dict"):
             raise ValueError("inference_params must have key_value_memory_dict attribute")
+        if self.layer_idx is None:
+            raise ValueError("layer_idx must be set to use state management")
 
-        assert self.layer_idx is not None, "layer_idx must be set to use state management"
+        kv_dict = inference_params.key_value_memory_dict
 
         # Allocate cache if it doesn't exist
         batch_size = state.conv_state.shape[0]
-        if self.layer_idx not in inference_params.key_value_memory_dict:
+        if self.layer_idx not in kv_dict:
             conv_state, ssm_state = self.allocate_inference_cache(
                 batch_size=batch_size,
                 max_seqlen=1,  # dummy value, we only care about batch/hidden dims
                 dtype=state.conv_state.dtype,
             )
-            inference_params.key_value_memory_dict[self.layer_idx] = (conv_state, ssm_state)
+            kv_dict[self.layer_idx] = (conv_state, ssm_state)
         else:
-            conv_state, ssm_state = inference_params.key_value_memory_dict[self.layer_idx]
+            cache = kv_dict[self.layer_idx]
+            if not isinstance(cache, (list, tuple)) or len(cache) < 2:
+                raise ValueError(
+                    f"inference_params cache entry for layer {self.layer_idx} "
+                    f"must be (conv_state, ssm_state, ...)"
+                )
+            conv_state, ssm_state = cache[0], cache[1]
 
         # Validate shapes
         if conv_state.shape != state.conv_state.shape:
             raise ValueError(
-                f"conv_state shape mismatch: got {state.conv_state.shape}, "
-                f"expected {conv_state.shape}"
+                f"conv_state shape mismatch: cache={conv_state.shape}, "
+                f"new={state.conv_state.shape}"
             )
         if ssm_state.shape != state.ssm_state.shape:
             raise ValueError(
-                f"ssm_state shape mismatch: got {state.ssm_state.shape}, "
-                f"expected {ssm_state.shape}"
+                f"ssm_state shape mismatch: cache={ssm_state.shape}, "
+                f"new={state.ssm_state.shape}"
             )
 
         # Copy state tensors
         conv_state.copy_(state.conv_state)
         ssm_state.copy_(state.ssm_state)
+
+    def zero_inference_state(self, inference_params=None) -> None:
+        """
+        Zero out this layer's conv_state and ssm_state if present in cache.
+
+        Useful for episode resets in RL or explicit context clearing.
+        """
+        cache = self._get_cache_tuple(inference_params)
+        if cache is None:
+            return
+        conv_state, ssm_state = cache
+        conv_state.zero_()
+        ssm_state.zero_()
