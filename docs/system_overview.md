@@ -4,6 +4,33 @@
 
 The Pseudo-Mamba system is designed for rigorous evaluation of long-horizon memory capabilities in recurrent neural networks and state space models.
 
+### System Architecture
+
+```mermaid
+graph TD
+    subgraph "Environments (envs/)"
+        E[VectorizedEnv] --> T1[CopyMemory]
+        E --> T2[AssocRecall]
+        E --> T3[DelayedCue]
+        E --> T4[...5 others]
+    end
+
+    subgraph "Controllers (controllers/)"
+        C[BaseController] --> G[GRU]
+        C --> M[Mamba]
+        C --> P[PseudoMamba]
+        P -.->|Optional| K[CUDA Kernel]
+    end
+
+    subgraph "RL Engine (rlh/)"
+        AC[ActorCritic] --> C
+        PPO[PPO Engine] --> AC
+        PPO --> RB[RolloutBuffer]
+    end
+
+    PPO <-->|Step & Train| E
+```
+
 ### Core Components
 
 1.  **Controllers (`pseudo_mamba.controllers`)**:
