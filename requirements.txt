@@ -1,0 +1,11 @@
+torch>=2.0.0
+einops
+transformers
+packaging
+ninja
+gymnasium
+matplotlib
+pandas
+seaborn
+tqdm
+pytest
