@@ -52,10 +52,16 @@ echo "============================================================="
 echo "Phase 1: Clean Build"
 echo "============================================================="
 
+# Set build parallelism
+export MAX_JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+echo "Setting MAX_JOBS=${MAX_JOBS} for faster compilation"
+
 # Clean previous builds
 echo "Cleaning previous builds..."
 rm -rf build/ dist/ *.egg-info
 find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+rm -f pseudo_mamba_ext/*.so
 
 # Install dependencies
 echo "Installing dependencies..."
@@ -63,7 +69,8 @@ pip install -q packaging ninja einops transformers
 
 # Build and install
 echo "Building mamba-ssm with state management patches..."
-pip install -e . --no-build-isolation
+# Use --verbose to see compilation errors if they happen
+pip install -e . --no-build-isolation -v
 
 echo -e "${GREEN}✓ Build complete${NC}"
 echo ""
