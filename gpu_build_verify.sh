@@ -128,6 +128,14 @@ python pseudo_mamba_memory_suite.py \
 
 echo ""
 echo "============================================================="
+echo "Phase 5: Debug Features Verification"
+echo "============================================================="
+
+echo "Running debug features suite..."
+python debug_mamba_features.py
+
+echo ""
+echo "============================================================="
 echo "Build & Verification Complete!"
 echo "============================================================="
 echo ""
@@ -137,7 +145,10 @@ echo "Next steps:"
 echo "  1. Run full benchmark:"
 echo "     python pseudo_mamba_memory_suite.py --env copy_memory --controller real_mamba --horizon 2000"
 echo ""
-echo "  2. Integrate into your project"
+echo "  2. Debug Mamba models:"
+echo "     python debug_mamba_features.py"
+echo ""
+echo "  3. Integrate into your project"
 echo ""
 echo "  3. See STATE_MANAGEMENT_README.md for API docs"
 echo ""

@@ -417,3 +417,12 @@ def mamba_inner_ref(
             C = rearrange(C, "(b l) (dstate two) -> b dstate (l two)", l=L, two=2).contiguous()
     y = selective_scan_fn(x, delta, A, B, C, D, z=z, delta_bias=delta_bias, delta_softplus=True)
     return F.linear(rearrange(y, "b d l -> b l d"), out_proj_weight, out_proj_bias)
+
+
+def selective_scan_fn_debug(u, delta, A, B, C, D=None, z=None, delta_bias=None, delta_softplus=True):
+    """
+    Debug version of selective_scan_fn that uses the Triton kernel to return full state traces.
+    Returns: (out, trace)
+    """
+    from mamba_ssm.ops.triton.selective_state_update_debug import selective_scan_debug
+    return selective_scan_debug(u, delta, A, B, C, D, z, delta_bias, delta_softplus)

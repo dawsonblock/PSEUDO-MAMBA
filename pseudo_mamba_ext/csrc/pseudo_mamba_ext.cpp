@@ -5,9 +5,16 @@
 
 torch::Tensor pseudo_mamba_forward_cpu(torch::Tensor x, torch::Tensor h) {
   // x, h: [B, D]
-  // Simple placeholder: y = tanh(x + h)
-  auto y = torch::tanh(x + h);
+  auto v = x + h;
+  auto y = torch::tanh(v);
   return y;
+}
+
+std::vector<torch::Tensor>
+pseudo_mamba_forward_with_state_cpu(torch::Tensor x, torch::Tensor h) {
+  auto v = x + h;
+  auto y = torch::tanh(v);
+  return {y, v};
 }
 
 std::vector<torch::Tensor> pseudo_mamba_backward_cpu(torch::Tensor grad_out,
@@ -25,8 +32,9 @@ std::vector<torch::Tensor> pseudo_mamba_backward_cpu(torch::Tensor grad_out,
 
 // ------------------- CUDA declarations -------------------
 
-// Implemented in pseudo_mamba_ext_kernel.cu
 torch::Tensor pseudo_mamba_forward_cuda(torch::Tensor x, torch::Tensor h);
+std::vector<torch::Tensor>
+pseudo_mamba_forward_with_state_cuda(torch::Tensor x, torch::Tensor h);
 std::vector<torch::Tensor> pseudo_mamba_backward_cuda(torch::Tensor grad_out,
                                                       torch::Tensor x,
                                                       torch::Tensor h,
@@ -45,12 +53,25 @@ torch::Tensor pseudo_mamba_forward(torch::Tensor x, torch::Tensor h) {
   }
 }
 
+std::vector<torch::Tensor> pseudo_mamba_forward_with_state(torch::Tensor x,
+                                                           torch::Tensor h) {
+  TORCH_CHECK(x.sizes() == h.sizes(), "x and h must have same shape");
+  TORCH_CHECK(x.dim() == 2, "Expected [B, D] tensors");
+
+  if (x.is_cuda()) {
+    return pseudo_mamba_forward_with_state_cuda(x, h);
+  } else {
+    return pseudo_mamba_forward_with_state_cpu(x, h);
+  }
+}
+
 std::vector<torch::Tensor> pseudo_mamba_backward(torch::Tensor grad_out,
                                                  torch::Tensor x,
                                                  torch::Tensor h,
                                                  torch::Tensor y) {
   TORCH_CHECK(grad_out.sizes() == y.sizes(),
               "grad_out and y must have same shape");
+  TORCH_CHECK(grad_out.dim() == 2, "Expected [B, D] tensors");
 
   if (grad_out.is_cuda()) {
     return pseudo_mamba_backward_cuda(grad_out, x, h, y);
@@ -64,6 +85,8 @@ std::vector<torch::Tensor> pseudo_mamba_backward(torch::Tensor grad_out,
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("pseudo_mamba_forward", &pseudo_mamba_forward,
         "Pseudo-Mamba forward (x, h -> y)");
+  m.def("pseudo_mamba_forward_with_state", &pseudo_mamba_forward_with_state,
+        "Pseudo-Mamba forward with state (x, h -> y, v)");
   m.def("pseudo_mamba_backward", &pseudo_mamba_backward,
         "Pseudo-Mamba backward (grad_out, x, h, y -> grad_x, grad_h)");
 }
