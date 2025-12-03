@@ -60,6 +60,14 @@ def run_benchmark(args):
     
     # Init PPO
     ppo = PPO(model, lr=args.lr)
+    ppo.set_scheduler(args.total_updates)
+    
+    # Torch Compile
+    if args.compile:
+        print("Compiling model with torch.compile...")
+        model = torch.compile(model)
+        # Re-assign compiled model to ppo
+        ppo.actor_critic = model
     
     # Init Buffer
     buffer = RolloutBuffer(
@@ -124,7 +132,7 @@ def run_benchmark(args):
         results.append(metrics)
         
         if update % 10 == 0:
-            print(f"Update {update}: Reward={avg_reward.item():.4f}, Loss={metrics['loss']:.4f}")
+            print(f"Update {update}: Reward={avg_reward.item():.4f}, Loss={metrics['loss']:.4f}, LR={metrics['lr']:.6f}, GradNorm={metrics['grad_norm']:.4f}")
             
     # Save results
     os.makedirs("results", exist_ok=True)
@@ -143,6 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--total_updates", type=int, default=100)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--compile", action="store_true", help="Use torch.compile")
     
     args = parser.parse_args()
     torch.manual_seed(args.seed)

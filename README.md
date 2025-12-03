@@ -15,6 +15,10 @@ Pseudo-Mamba v2.0 is a complete overhaul of the Mamba repository, transforming i
 *   **Unified Controller API**: Plug-and-play interface for GRU, Mamba, and custom kernels.
 *   **Neural Memory Suite v1.1**: 8 vectorized, GPU-accelerated tasks designed to stress-test recall, pattern binding, and navigation.
 *   **Honest PPO Engine**: Mathematically correct Proximal Policy Optimization with full-sequence Backpropagation Through Time (BPTT) and proper recurrent state handling.
+*   **Optimized Training**:
+    *   **Mixed Precision (AMP)**: Automatic Mixed Precision for faster training on modern GPUs.
+    *   **Torch Compile**: Optional `torch.compile` support for graph optimization.
+    *   **Advanced Metrics**: Logs Gradient Norm, Explained Variance, and Learning Rate.
 *   **CUDA Kernels**: Custom C++/CUDA extensions for efficient SSM operations (with CPU fallbacks).
 *   **Reproducible Benchmarks**: Single-command runner to generate comparable results across models.
 
