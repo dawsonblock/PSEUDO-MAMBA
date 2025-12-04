@@ -1,9 +1,10 @@
 # 3-Level Recurrent PPO Implementation
 
-**Status:** ✅ Complete and pushed to `claude/clean-env-wiring-01NvgNTyM81Cq3yNHoJfU1zX`
+**Status:** ✅ MVP Complete and pushed to `claude/clean-env-wiring-01NvgNTyM81Cq3yNHoJfU1zX`
 
 ## Overview
 
+**Note:** The "truncated" mode does not implement true truncated BPTT. Instead, it replays from t=0 for each window rather than using stored per-timestep states. This is a core functionality gap; the current implementation is a minimum viable product and may not provide full gradient fidelity expected from true truncated BPTT.
 PSEUDO-MAMBA now supports three operational modes for recurrent PPO, providing flexibility between computational efficiency and gradient fidelity:
 
 1. **Level 1 - Cached** (`recurrent_mode="cached"`): Fast, approximate
