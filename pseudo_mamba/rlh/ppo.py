@@ -102,7 +102,7 @@ class PPO:
 
         for _ in range(self.ppo_epochs):
             # Shuffle env indices
-            indices = torch.randperm(batch_size)
+            indices = torch.randperm(batch_size, device=obs.device)
 
             for start_idx in range(0, batch_size, minibatch_size):
                 end_idx = start_idx + minibatch_size
