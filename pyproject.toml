@@ -12,14 +12,13 @@ authors = [
 dependencies = [
     "torch>=2.0.0",
     "einops",
-    "transformers",
-    "packaging",
-    "ninja",
+    "numpy",
     "gymnasium",
-    "matplotlib",
+    "pyyaml",
+    "wandb",
     "pandas",
     "seaborn",
-    "tqdm",
+    "matplotlib"
 ]
 requires-python = ">=3.8"
 
@@ -29,7 +28,14 @@ dev = [
     "black",
     "isort",
     "flake8",
+    "triton"
 ]
+mamba = [
+    "mamba-ssm"
+]
+
+[project.scripts]
+pseudo-mamba-memory-suite = "pseudo_mamba_memory_suite:main"
 
 [tool.setuptools.packages.find]
 include = ["pseudo_mamba*"]

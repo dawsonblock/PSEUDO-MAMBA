@@ -1,0 +1,156 @@
+# pseudo_mamba_memory_suite.yaml
+
+defaults:
+  device: "auto"
+  precision: "fp32"
+  num_envs: 64
+  steps: 200000
+  episodes: null      # if set, overrides steps
+  gamma: 0.99
+  gae_lambda: 0.95
+  rollout_length: 128
+  batch_size: 8192
+  lr: 3.0e-4
+  clip_coef: 0.2
+  vf_coef: 0.5
+  ent_coef: 0.0
+  max_grad_norm: 0.5
+  wandb:
+    mode: "disabled"        # disabled | online | offline
+    project: "pseudo-mamba"
+    entity: null
+
+tasks:
+  delayed_cue:
+    env_class: "DelayedCueEnv"        # Python class in pseudo_mamba.envs.delayed_cue
+    module: "pseudo_mamba.envs.delayed_cue"
+    obs_dim: 3
+    n_cues: 8
+    default_horizons: [200, 1000]     # suggested horizons for benchmark
+    kwargs: {}
+
+  copy_memory:
+    env_class: "CopyMemoryEnv"
+    module: "pseudo_mamba.envs.copy_memory"
+    obs_dim: 10
+    sequence_length: 20
+    default_horizons: [200, 500]
+    kwargs:
+      pad_token: 0
+
+  assoc_recall:
+    env_class: "AssocRecallEnv"
+    module: "pseudo_mamba.envs.assoc_recall"
+    obs_dim: 16
+    num_pairs: 8
+    default_horizons: [200, 800]
+    kwargs: {}
+
+  multi_cue_delay:
+    env_class: "MultiCueDelayEnv"
+    module: "pseudo_mamba.envs.multi_cue_delay"
+    obs_dim: 16
+    kwargs: {}
+
+  n_back:
+    env_class: "NBackEnv"
+    module: "pseudo_mamba.envs.n_back"
+    obs_dim: 16
+    kwargs: {}
+
+  pattern_binding:
+    env_class: "PatternBindingEnv"
+    module: "pseudo_mamba.envs.pattern_binding"
+    obs_dim: 16
+    kwargs: {}
+
+  permuted_copy:
+    env_class: "PermutedCopyEnv"
+    module: "pseudo_mamba.envs.permuted_copy"
+    obs_dim: 16
+    kwargs: {}
+
+  distractor_nav:
+    env_class: "DistractorNavEnv"
+    module: "pseudo_mamba.envs.distractor_nav"
+    obs_dim: 16
+    kwargs: {}
+
+controllers:
+  gru:
+    class: "GRUController"
+    module: "pseudo_mamba.controllers.gru"
+    hidden_dim: 128
+    feature_dim: 128
+    kwargs: {}
+
+  pseudo_mamba:
+    class: "PseudoMambaController"
+    module: "pseudo_mamba.controllers.pseudo_mamba"
+    hidden_dim: 128
+    feature_dim: 128
+    use_cuda_ext: true
+    kwargs: {}
+
+  mamba:
+    class: "MambaController"
+    module: "pseudo_mamba.controllers.mamba"
+    d_model: 128
+    d_state: 16
+    d_conv: 4
+    feature_dim: 128
+    kwargs: {}
+    # Optional: flag to require patched mamba
+    require_patched_mamba: true
+
+  transformer:
+    class: "TransformerController"
+    module: "pseudo_mamba.controllers.transformer"
+    hidden_dim: 128
+    feature_dim: 128
+    kwargs:
+      n_head: 4
+      n_layer: 2
+
+suites:
+  basic_v1:
+    description: >
+      Canonical small suite: GRU vs Pseudo-Mamba vs Mamba on three tasks
+      and two horizons each.
+
+    # If true, expand all controllers for each task/horizon
+    expand_all_controllers: false
+
+    runs:
+      - id: dc_h200
+        task: delayed_cue
+        controllers: [gru, pseudo_mamba, mamba]
+        horizon: 200
+        steps: 200000
+
+      - id: dc_h1000
+        task: delayed_cue
+        controllers: [gru, pseudo_mamba, mamba]
+        horizon: 1000
+        steps: 400000
+
+      - id: cm_h200
+        task: copy_memory
+        controllers: [gru, pseudo_mamba, mamba]
+        horizon: 200
+        steps: 300000
+
+      - id: ar_h200
+        task: assoc_recall
+        controllers: [gru, pseudo_mamba, mamba]
+        horizon: 200
+        steps: 300000
+
+  tiny_sanity:
+    description: "Very short sanity runs for CI / smoke tests."
+    runs:
+      - id: dc_smoke
+        task: delayed_cue
+        controllers: [gru]
+        horizon: 50
+        steps: 20000

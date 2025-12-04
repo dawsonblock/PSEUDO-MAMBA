@@ -15,7 +15,7 @@ class MambaController(BaseController):
     with explicit state management patches.
     """
     def __init__(self, input_dim: int, hidden_dim: int, feature_dim: int, layer_idx: int = 0, 
-                 d_state: int = 16, d_conv: int = 4, expand: int = 2):
+                 d_state: int = 16, d_conv: int = 4, expand: int = 2, require_patched_mamba: bool = False):
         super().__init__(input_dim, hidden_dim, feature_dim)
         
         if not HAS_MAMBA:
@@ -32,6 +32,16 @@ class MambaController(BaseController):
             expand=expand,
             layer_idx=layer_idx
         )
+        
+        # Runtime check for patched Mamba
+        if require_patched_mamba:
+            if not hasattr(self.mamba, "get_inference_state"):
+                raise ImportError(
+                    "Your installed mamba_ssm does not support 'get_inference_state'. "
+                    "This feature requires the patched version of Mamba described in "
+                    "STATE_MANAGEMENT_README.md and ENHANCED_PATCHES.md. "
+                    "Please patch your local mamba-ssm installation or set require_patched_mamba=False."
+                )
         
         if feature_dim != hidden_dim:
             self.proj = nn.Linear(hidden_dim, feature_dim)
