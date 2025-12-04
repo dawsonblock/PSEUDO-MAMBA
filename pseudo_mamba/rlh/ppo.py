@@ -90,7 +90,7 @@ class PPO:
 
         T, B = obs.shape[:2]
         batch_size = B
-        minibatch_size = batch_size // self.num_minibatches
+        minibatch_size = max(1, batch_size // self.num_minibatches)
 
         total_loss_sum = 0
         pg_loss_sum = 0
@@ -221,7 +221,7 @@ class PPO:
         advantages_flat = (advantages_flat - advantages_flat.mean()) / (advantages_flat.std() + 1e-8)
 
         dataset_size = T * B
-        minibatch_size = dataset_size // self.num_minibatches
+        minibatch_size = max(1, dataset_size // self.num_minibatches)
 
         total_loss_sum = 0
         pg_loss_sum = 0
