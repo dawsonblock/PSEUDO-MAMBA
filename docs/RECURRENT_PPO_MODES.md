@@ -16,9 +16,9 @@ PSEUDO-MAMBA now supports three operational modes for recurrent PPO, providing f
 
 | Mode | BPTT Depth | Speed | Gradient Fidelity | Use Case |
 |------|------------|-------|-------------------|----------|
-| **Cached** | None | ⚡⚡⚡ Fast | ~60% | Large sweeps, baselines |
-| **Truncated** | K steps | ⚡⚡ Medium | ~85% | Production training |
-| **Full** | T steps | ⚡ Slow | 100% | Final evaluation, research |
+| **Cached** | None | ⚡⚡⚡ Fast | Low | Large sweeps, baselines |
+| **Truncated** | K steps | ⚡⚡ Medium | Medium | Production training |
+| **Full** | T steps | ⚡ Slow | Maximum | Final evaluation, research |
 
 ---
 
