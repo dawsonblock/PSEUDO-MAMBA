@@ -137,6 +137,7 @@ def build_controller_from_config(cfg: Dict[str, Any],
             feature_dim=ctrl_cfg["feature_dim"],
             d_state=ctrl_cfg["d_state"],
             d_conv=ctrl_cfg["d_conv"],
+            require_patched_mamba=ctrl_cfg.get("require_patched_mamba", False),
             **kwargs,
         )
     elif ctrl_name == "transformer":
@@ -315,13 +316,13 @@ def train_single_run(
 
             # Store step
             buffer.insert(
-                obs=obs,                            # obs at t (current)
+                obs=next_obs,                       # obs at t+1
                 action=action,
                 reward=reward,
                 done=done.float(),
                 value=value.squeeze(-1),            # [B]
                 logprob=logprob,
-                state=state,                        # state at t (current)
+                state=next_state,                   # state at t+1
             )
 
             # Recurrent state masking on done
