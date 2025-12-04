@@ -3,12 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pseudo_mamba"
+name = "pseudo-mamba"
 version = "2.0.0"
-description = "Unified Neural Memory Suite with Mamba, GRU, and Pseudo-Mamba controllers"
-authors = [
-  { name = "Dawson Block", email = "dawson@example.com" },
-]
+description = "Neural Memory Benchmark Suite"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+authors = [{name = "Dawson Block"}]
 dependencies = [
     "torch>=2.0.0",
     "einops",
