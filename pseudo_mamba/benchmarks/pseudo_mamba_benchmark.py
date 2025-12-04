@@ -30,6 +30,7 @@ import numpy as np
 from pseudo_mamba.controllers.gru import GRUController
 from pseudo_mamba.controllers.mamba import MambaController
 from pseudo_mamba.controllers.pseudo_mamba import PseudoMambaController
+from pseudo_mamba.controllers.transformer import TransformerController
 from pseudo_mamba.rlh.actor_critic import ActorCritic
 from pseudo_mamba.rlh.rollout import RolloutBuffer
 from pseudo_mamba.rlh.ppo import PPO
@@ -63,7 +64,8 @@ TASK_MAP = {
 CONTROLLER_MAP = {
     "gru": GRUController,
     "mamba": MambaController,
-    "pseudo_mamba": PseudoMambaController
+    "pseudo_mamba": PseudoMambaController,
+    "transformer": TransformerController
 }
 
 def train(
@@ -83,6 +85,8 @@ def train(
     mamba_d_state: int = 16,
     mamba_d_conv: int = 4,
     mamba_expand: int = 2,
+    transformer_n_head: int = 4,
+    transformer_n_layer: int = 2,
 ) -> Dict[str, Any]:
     
     if use_wandb and HAS_WANDB:
@@ -95,7 +99,9 @@ def train(
                 "hidden_dim": hidden_dim,
                 "lr": lr,
                 "mamba_d_state": mamba_d_state,
-                "mamba_d_conv": mamba_d_conv
+                "mamba_d_conv": mamba_d_conv,
+                "transformer_n_head": transformer_n_head,
+                "transformer_n_layer": transformer_n_layer
             },
             reinit=True
         )
@@ -121,6 +127,11 @@ def train(
             "d_state": mamba_d_state,
             "d_conv": mamba_d_conv,
             "expand": mamba_expand
+        })
+    elif controller == "transformer":
+        ctrl_kwargs.update({
+            "n_head": transformer_n_head,
+            "n_layer": transformer_n_layer
         })
         
     model_core = controller_cls(**ctrl_kwargs)
@@ -262,6 +273,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mamba_d_conv", type=int, default=4, help="Mamba Conv1d kernel size")
     parser.add_argument("--mamba_expand", type=int, default=2, help="Mamba expansion factor")
     
+    parser.add_argument("--transformer_n_head", type=int, default=4, help="Transformer heads")
+    parser.add_argument("--transformer_n_layer", type=int, default=2, help="Transformer layers")
+    
     return parser.parse_args()
 
 
@@ -304,7 +318,9 @@ def main():
                     use_wandb=args.wandb,
                     mamba_d_state=args.mamba_d_state,
                     mamba_d_conv=args.mamba_d_conv,
-                    mamba_expand=args.mamba_expand
+                    mamba_expand=args.mamba_expand,
+                    transformer_n_head=args.transformer_n_head,
+                    transformer_n_layer=args.transformer_n_layer
                 )
                 results.append(summary)
             except Exception as e:
