@@ -211,11 +211,11 @@ class PPO:
         advantages = batch["advantages"]
         returns = batch["returns"]
 
-        T, B = obs.shape[:2]
-
-        # Flatten time and batch dimensions for standard PPO
-        obs_flat = obs.reshape(T * B, -1)
-        actions_flat = actions.reshape(T * B)
+        obs_flat = obs.contiguous().reshape(T * B, -1)
+        actions_flat = actions.contiguous().reshape(T * B)
+        old_logprobs_flat = old_logprobs.contiguous().reshape(T * B)
+        advantages_flat = advantages.contiguous().reshape(T * B)
+        returns_flat = returns.contiguous().reshape(T * B)
         old_logprobs_flat = old_logprobs.reshape(T * B)
         advantages_flat = advantages.reshape(T * B)
         adv_mean = advantages_flat.mean()
