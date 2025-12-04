@@ -211,19 +211,18 @@ class PPO:
         advantages = batch["advantages"]
         returns = batch["returns"]
 
+        T, B = obs.shape[:2]
+
         obs_flat = obs.contiguous().reshape(T * B, -1)
         actions_flat = actions.contiguous().reshape(T * B)
         old_logprobs_flat = old_logprobs.contiguous().reshape(T * B)
         advantages_flat = advantages.contiguous().reshape(T * B)
         returns_flat = returns.contiguous().reshape(T * B)
-        old_logprobs_flat = old_logprobs.reshape(T * B)
-        advantages_flat = advantages.reshape(T * B)
+
+        # Normalize advantages (single, stable pass)
         adv_mean = advantages_flat.mean()
         adv_std = advantages_flat.std()
         advantages_flat = (advantages_flat - adv_mean) / torch.clamp(adv_std, min=1e-8)
-
-        # Normalize advantages
-        advantages_flat = (advantages_flat - advantages_flat.mean()) / (advantages_flat.std() + 1e-8)
 
         dataset_size = T * B
         minibatch_size = max(1, dataset_size // self.num_minibatches)
