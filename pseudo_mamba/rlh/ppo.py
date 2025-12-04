@@ -218,7 +218,9 @@ class PPO:
         actions_flat = actions.reshape(T * B)
         old_logprobs_flat = old_logprobs.reshape(T * B)
         advantages_flat = advantages.reshape(T * B)
-        returns_flat = returns.reshape(T * B)
+        adv_mean = advantages_flat.mean()
+        adv_std = advantages_flat.std()
+        advantages_flat = (advantages_flat - adv_mean) / torch.clamp(adv_std, min=1e-8)
 
         # Normalize advantages
         advantages_flat = (advantages_flat - advantages_flat.mean()) / (advantages_flat.std() + 1e-8)
