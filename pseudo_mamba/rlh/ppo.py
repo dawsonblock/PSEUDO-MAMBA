@@ -168,8 +168,11 @@ class PPO:
                 # Metrics
                 y_pred = new_values.flatten()
                 y_true = mb_returns.flatten()
-                var_y = torch.var(y_true)
-                explained_var = 1 - torch.var(y_true - y_pred) / (var_y + 1e-8)
+                with torch.no_grad():
+                    var_y = torch.var(y_true)
+                    var_y = torch.clamp(var_y, min=1e-8)
+                    num = torch.var(y_true - y_pred)
+                    explained_var = 1 - (num / var_y)
 
                 total_loss_sum += loss.item()
                 pg_loss_sum += pg_loss.item()
