@@ -297,4 +297,4 @@ ppo = PPO(actor_critic, recurrent_mode="full")
 
 **Implementation Date:** 2025-12-04
 **Branch:** `claude/clean-env-wiring-01NvgNTyM81Cq3yNHoJfU1zX`
-**Status:** Ready for merge
+**Status:** Ready for review
