@@ -87,7 +87,9 @@ def train(
     mamba_expand: int = 2,
     transformer_n_head: int = 4,
     transformer_n_layer: int = 2,
+    env_kwargs: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+
     
     if use_wandb and HAS_WANDB:
         wandb.init(
@@ -106,12 +108,30 @@ def train(
             reinit=True
         )
     
-    # Init Env
+    # Init Env with env_kwargs support
+    if env_kwargs is None:
+        env_kwargs = {}
+    
     env_cls = TASK_MAP[env_name]
+    
+    # Merge default construction with env_kwargs
+    merged_kwargs = {
+        "batch_size": num_envs,
+        "device": device,
+    }
+    
+    # Try sequence_length first (most tasks support this)
     try:
-        env = env_cls(batch_size=num_envs, device=device, sequence_length=horizon)
-    except TypeError:
-        env = env_cls(batch_size=num_envs, device=device)
+        test_env = env_cls(batch_size=1, device=device, sequence_length=horizon)
+        del test_env
+        merged_kwargs["sequence_length"] = horizon
+    except (TypeError, AttributeError):
+        pass
+    
+    # Apply env_kwargs overrides
+    merged_kwargs.update(env_kwargs)
+    
+    env = env_cls(**merged_kwargs)
     
     # Init Controller
     controller_cls = CONTROLLER_MAP[controller]

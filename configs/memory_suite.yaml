@@ -1,0 +1,82 @@
+suite_name: "pseudo_mamba_memory_v1"
+
+device: "cuda"         # default; can be overridden by CLI
+out: "results/memory_suite_v1.json"
+
+# Global hyperparam defaults (overridable per experiment)
+defaults:
+  num_envs: 64
+  hidden_dim: 128
+  total_updates: 5000
+  gamma: 0.99
+  gae_lambda: 0.95
+  lr: 3.0e-4
+  value_coef: 0.5
+  entropy_coef: 0.01
+  mamba_d_state: 16
+  mamba_d_conv: 4
+  mamba_expand: 2
+  transformer_n_head: 4
+  transformer_n_layer: 2
+
+# Default controllers used if experiment doesn't override
+default_controllers:
+  - gru
+  - mamba
+  - pseudo_mamba
+
+# Default seeds (overridable via CLI --seeds)
+seeds: [0, 1, 2]
+
+wandb:
+  enabled: false
+  project: "pseudo-mamba-memory-suite"
+  entity: null
+  group: "v1"
+
+experiments:
+  # 1. Delayed Cue — moderate horizon
+  - id: "dcue_h100"
+    task: "delayed_cue"
+    horizon: 100
+    controllers: ["gru", "mamba", "pseudo_mamba"]
+    env_kwargs:
+      delay_len: 98
+      num_cues: 8
+    overrides:
+      total_updates: 2000
+
+  # 2. Delayed Cue — extreme horizon
+  - id: "dcue_h1000"
+    task: "delayed_cue"
+    horizon: 1000
+    controllers: ["gru", "mamba", "pseudo_mamba"]
+    env_kwargs:
+      delay_len: 998
+      num_cues: 8
+    overrides:
+      total_updates: 8000
+
+  # 3. Copy Memory
+  - id: "copy_h200"
+    task: "copy_memory"
+    horizon: 200
+    controllers: ["gru", "mamba", "pseudo_mamba"]
+    env_kwargs:
+      vocab_size: 8
+      seq_len: 10
+      delay_len: 180
+    overrides:
+      total_updates: 6000
+
+  # 4. Associative Recall
+  - id: "assoc_h300"
+    task: "assoc_recall"
+    horizon: 300
+    controllers: ["gru", "mamba", "pseudo_mamba"]
+    env_kwargs:
+      vocab_size: 16
+      num_pairs: 8
+      delay_len: 280
+    overrides:
+      total_updates: 6000
