@@ -1,0 +1,52 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-cpu:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -e .
+        pip install pytest
+    
+    - name: Run unit tests
+      run: |
+        pytest tests/test_autograd_equivalence.py::test_pseudo_mamba_cpu_fallback -v
+        
+    - name: Run smoke test
+      run: |
+        python pseudo_mamba_memory_suite.py --suite tiny_sanity --overwrite
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+    
+    - name: Run syntax checks
+      run: |
+        python -m py_compile pseudo_mamba_memory_suite.py
+        python -m py_compile pseudo_mamba_rl_core.py
+        python -m py_compile pseudo_mamba/benchmarks/registry.py

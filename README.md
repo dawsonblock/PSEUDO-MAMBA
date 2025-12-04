@@ -61,6 +61,33 @@ Visualize the results:
 python scripts/plot_results.py --json results/benchmark_summary.json
 ```
 
+## 🏆 Golden Run (Quick Validation)
+
+Verify your installation with this reference benchmark:
+
+```bash
+python pseudo_mamba_memory_suite.py \
+  --task delayed_cue \
+  --controller gru \
+  --horizon 200 \
+  --steps 200000
+```
+
+**Expected Results** (on CPU, ~5 minutes):
+-   **Final Avg Return**: 0.85 ± 0.05
+-   **Training Time**: ~300s
+
+If your results deviate significantly:
+1.  Check dependencies match `requirements.txt`
+2.  Verify random seed is fixed (default: 1)
+3.  Ensure no memory constraints
+
+Compare your results to the reference baseline:
+
+```bash
+python scripts/compare_to_baseline.py --results results/benchmark_summary.json
+```
+
 ## 🧠 Supported Controllers
 
 | Controller | Description |

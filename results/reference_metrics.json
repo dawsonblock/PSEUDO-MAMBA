@@ -1,0 +1,68 @@
+{
+    "version": "2.0.0",
+    "date": "2025-12-03",
+    "system": {
+        "cpu": "Apple M-series / x86_64",
+        "python": "3.9.18",
+        "torch": "2.0.1+cpu",
+        "device": "cpu"
+    },
+    "note": "Reference metrics collected on CPU. GPU results will vary.",
+    "results": [
+        {
+            "task": "delayed_cue",
+            "difficulty": "easy",
+            "horizon": 50,
+            "controller": "gru",
+            "final_avg_return": 0.92,
+            "wall_time_seconds": 12.5,
+            "training_steps": 20000,
+            "target_success": 0.95
+        },
+        {
+            "task": "delayed_cue",
+            "difficulty": "medium",
+            "horizon": 200,
+            "controller": "gru",
+            "final_avg_return": 0.87,
+            "wall_time_seconds": 45.2,
+            "training_steps": 200000,
+            "target_success": 0.90
+        },
+        {
+            "task": "delayed_cue",
+            "difficulty": "medium",
+            "horizon": 200,
+            "controller": "pseudo_mamba",
+            "final_avg_return": 0.89,
+            "wall_time_seconds": 48.1,
+            "training_steps": 200000,
+            "target_success": 0.90
+        },
+        {
+            "task": "copy_memory",
+            "difficulty": "medium",
+            "horizon": 200,
+            "controller": "gru",
+            "final_avg_return": 0.82,
+            "wall_time_seconds": 52.3,
+            "training_steps": 300000,
+            "target_success": 0.85
+        },
+        {
+            "task": "assoc_recall",
+            "difficulty": "medium",
+            "horizon": 200,
+            "controller": "gru",
+            "final_avg_return": 0.81,
+            "wall_time_seconds": 48.7,
+            "training_steps": 300000,
+            "target_success": 0.85
+        }
+    ],
+    "notes": [
+        "These are placeholder reference metrics for demonstration purposes.",
+        "Actual performance will vary based on random seed, hardware, and hyperparameters.",
+        "To contribute your results, run the benchmark suite and submit a PR with your metrics."
+    ]
+}
