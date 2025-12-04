@@ -339,10 +339,12 @@ class PPO:
                 if t0 == 0:
                     window_state = initial_state
                 else:
-                    # Would need states stored per timestep
-                    # For now, use initial state and replay from start
-                    # TODO: Store per-step states in buffer for proper truncation
-                    window_state = initial_state
+                    # Use per-timestep states from buffer for proper truncation
+                    # Detach to prevent gradient flow beyond window
+                    if "states" in batch:
+                        window_state = batch["states"][t0].detach()
+                    else:
+                        raise ValueError("Truncated BPTT requires per-timestep states in batch['states']")
 
                 # Extract window data
                 window_obs = obs[t0:t1]  # [K', B, obs_dim]
