@@ -16,13 +16,40 @@ import urllib.request
 import urllib.error
 from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 
-import torch
-from torch.utils.cpp_extension import (
-    BuildExtension,
-    CUDAExtension,
-    CUDA_HOME,
-    HIP_HOME
-)
+# FORCE_BUILD: Force a fresh build locally, instead of attempting to find prebuilt wheels
+# SKIP_CUDA_BUILD: Intended to allow CI to use a simple `python setup.py sdist` run to copy over raw files, without any cuda compilation
+FORCE_BUILD = os.getenv("MAMBA_FORCE_BUILD", "FALSE") == "TRUE"
+SKIP_CUDA_BUILD = os.getenv("MAMBA_SKIP_CUDA_BUILD", "FALSE") == "TRUE"
+# For CI, we want the option to build with C++11 ABI since the nvcr images use C++11 ABI
+FORCE_CXX11_ABI = os.getenv("MAMBA_FORCE_CXX11_ABI", "FALSE") == "TRUE"
+
+# Defer torch import until we know we need CUDA extensions
+# This allows `pip install -e .` to work even if torch isn't installed yet
+if not SKIP_CUDA_BUILD:
+    try:
+        import torch
+        from torch.utils.cpp_extension import (
+            BuildExtension,
+            CUDAExtension,
+            CUDA_HOME,
+            HIP_HOME
+        )
+        TORCH_AVAILABLE = True
+    except ImportError:
+        TORCH_AVAILABLE = False
+        torch = None
+        BuildExtension = None
+        CUDAExtension = None
+        CUDA_HOME = None
+        HIP_HOME = None
+        warnings.warn("torch not available, skipping CUDA build")
+else:
+    TORCH_AVAILABLE = False
+    torch = None
+    BuildExtension = None
+    CUDAExtension = None
+    CUDA_HOME = None
+    HIP_HOME = None
 
 
 with open("README.md", "r", encoding="utf-8") as fh:
@@ -35,13 +62,6 @@ this_dir = os.path.dirname(os.path.abspath(__file__))
 PACKAGE_NAME = "mamba_ssm"
 
 BASE_WHEEL_URL = "https://github.com/state-spaces/mamba/releases/download/{tag_name}/{wheel_name}"
-
-# FORCE_BUILD: Force a fresh build locally, instead of attempting to find prebuilt wheels
-# SKIP_CUDA_BUILD: Intended to allow CI to use a simple `python setup.py sdist` run to copy over raw files, without any cuda compilation
-FORCE_BUILD = os.getenv("MAMBA_FORCE_BUILD", "FALSE") == "TRUE"
-SKIP_CUDA_BUILD = os.getenv("MAMBA_SKIP_CUDA_BUILD", "FALSE") == "TRUE"
-# For CI, we want the option to build with C++11 ABI since the nvcr images use C++11 ABI
-FORCE_CXX11_ABI = os.getenv("MAMBA_FORCE_CXX11_ABI", "FALSE") == "TRUE"
 
 
 def get_platform():
@@ -92,7 +112,8 @@ def get_hip_version(rocm_dir):
 
 
 def get_torch_hip_version():
-
+    if not TORCH_AVAILABLE:
+        return None
     if torch.version.hip:
         return parse(torch.version.hip.split()[-1].rstrip('-').replace('-', '+'))
     else:
@@ -129,10 +150,10 @@ def append_nvcc_threads(nvcc_extra_args):
 cmdclass = {}
 ext_modules = []
 
+# Only attempt CUDA build if torch is available and not explicitly skipped
+if TORCH_AVAILABLE and not SKIP_CUDA_BUILD:
+    HIP_BUILD = bool(torch.version.hip)
 
-HIP_BUILD = bool(torch.version.hip)
-
-if not SKIP_CUDA_BUILD:
     print("\n\ntorch.__version__  = {}\n\n".format(torch.__version__))
     TORCH_MAJOR = int(torch.__version__.split(".")[0])
     TORCH_MINOR = int(torch.__version__.split(".")[1])
