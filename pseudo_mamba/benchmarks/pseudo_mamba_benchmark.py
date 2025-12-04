@@ -88,6 +88,8 @@ def train(
     transformer_n_head: int = 4,
     transformer_n_layer: int = 2,
     env_kwargs: Optional[Dict[str, Any]] = None,
+    recurrent_mode: str = "full",
+    burn_in_steps: int = 32,
 ) -> Dict[str, Any]:
 
     
@@ -169,12 +171,14 @@ def train(
     
     # Init PPO
     ppo = PPO(
-        model, 
-        lr=lr, 
-        gamma=gamma, 
-        gae_lambda=gae_lambda, 
-        value_loss_coef=value_coef, 
-        entropy_coef=entropy_coef
+        model,
+        lr=lr,
+        gamma=gamma,
+        gae_lambda=gae_lambda,
+        value_loss_coef=value_coef,
+        entropy_coef=entropy_coef,
+        recurrent_mode=recurrent_mode,
+        burn_in_steps=burn_in_steps
     )
     ppo.set_scheduler(total_updates)
     
@@ -303,7 +307,22 @@ def parse_args() -> argparse.Namespace:
     
     parser.add_argument("--transformer_n_head", type=int, default=4, help="Transformer heads")
     parser.add_argument("--transformer_n_layer", type=int, default=2, help="Transformer layers")
-    
+
+    # Recurrent PPO modes
+    parser.add_argument(
+        "--recurrent_mode",
+        type=str,
+        default="full",
+        choices=["full", "truncated", "cached"],
+        help="Recurrent PPO mode: full BPTT, truncated BPTT, or cached (no BPTT).",
+    )
+    parser.add_argument(
+        "--burn_in_steps",
+        type=int,
+        default=32,
+        help="Window length K for truncated BPTT (ignored in 'full' or 'cached' modes).",
+    )
+
     return parser.parse_args()
 
 
@@ -348,7 +367,9 @@ def main():
                     mamba_d_conv=args.mamba_d_conv,
                     mamba_expand=args.mamba_expand,
                     transformer_n_head=args.transformer_n_head,
-                    transformer_n_layer=args.transformer_n_layer
+                    transformer_n_layer=args.transformer_n_layer,
+                    recurrent_mode=args.recurrent_mode,
+                    burn_in_steps=args.burn_in_steps
                 )
                 results.append(summary)
             except Exception as e:
