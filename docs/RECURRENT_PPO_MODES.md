@@ -86,7 +86,7 @@ Recommended values by task horizon:
 | 1000+ | 256 | For very long dependencies |
 
 ### Tradeoffs
-- ✅ Honest recurrent gradients within windows
+- ⚠️ Gradients flow through all steps from t=0 to window end for each window (not true truncated BPTT)
 - ✅ 1.5-2x faster than full BPTT
 - ✅ Works well for most tasks
 - ⚠️ Window boundaries may miss global dependencies
