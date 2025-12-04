@@ -29,7 +29,7 @@ def device():
 @pytest.fixture
 def env(device):
     """Small delayed cue environment for testing."""
-    return DelayedCueEnv(batch_size=4, device=device, sequence_length=32)
+    return DelayedCueEnv(batch_size=4, device=device)
 
 
 @pytest.fixture
