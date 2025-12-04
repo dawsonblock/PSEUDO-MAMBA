@@ -345,10 +345,16 @@ class PPO:
                 if t0 == 0:
                     window_state = initial_state
                 else:
-                    # Use per-timestep states from buffer for proper truncation
-                    # Detach to prevent gradient flow beyond window
                     if "states" in batch:
-                        window_state = batch["states"][t0].detach()
+                        def _detach_to_device(s, device):
+                            if s is None:
+                                return None
+                            if isinstance(s, torch.Tensor):
+                                return s.detach().to(device)
+                            if isinstance(s, (tuple, list)):
+                                return type(s)(_detach_to_device(x, device) for x in s)
+                            return s
+                        window_state = _detach_to_device(batch["states"][t0], device=obs.device)
                     else:
                         raise ValueError("Truncated BPTT requires per-timestep states in batch['states']")
 
