@@ -198,25 +198,28 @@ Based on recurrent RL literature:
 
 ---
 
+## Known Limitations
+
+1. **Truncated BPTT does not use per-step state storage**
+   - The current "truncated" mode replays from t=0 for each window, rather than storing recurrent states at every K steps.
+   - This means it does not provide true truncated BPTT semantics as described in the literature.
+   - Implementing per-step state storage (O(T/K) state snapshots) is required for true windowed truncated BPTT, but is not yet available.
+   - Users should be aware that "truncated" mode is an approximation and may not match expected gradient fidelity for some tasks.
+
 ## Future Enhancements
 
 ### Potential Improvements
 
-1. **Per-Step State Storage** (for true truncated BPTT)
-   - Currently, truncated mode replays from t=0
-   - Could store states at every K steps for true windowing
-   - Memory cost: O(T/K) state snapshots
-
-2. **Adaptive K** (dynamic burn-in)
+1. **Adaptive K** (dynamic burn-in)
    - Adjust K based on task complexity
    - Longer K for critical phases (e.g., recall window)
    - Shorter K for stable phases
 
-3. **Hybrid Modes**
+2. **Hybrid Modes**
    - Cached for early training → Truncated → Full for final polish
    - Auto-switch based on performance plateaus
 
-4. **Memory-Optimized Full BPTT**
+3. **Memory-Optimized Full BPTT**
    - Gradient checkpointing for long sequences
    - Reduce memory from O(T) to O(√T)
 
