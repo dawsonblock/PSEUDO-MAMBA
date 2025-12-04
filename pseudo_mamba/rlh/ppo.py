@@ -325,7 +325,9 @@ class PPO:
         initial_state = batch["initial_state"]
 
         T, B = obs.shape[:2]
-        K = self.burn_in_steps
+        if T == 0:
+            return {"loss": 0.0, "pg_loss": 0.0, "val_loss": 0.0, "entropy": 0.0, "grad_norm": 0.0, "explained_var": 0.0, "lr": self.optimizer.param_groups[0]["lr"]}
+        K = max(1, self.burn_in_steps)
 
         total_loss_sum = 0
         pg_loss_sum = 0
