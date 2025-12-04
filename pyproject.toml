@@ -21,7 +21,6 @@ dependencies = [
     "seaborn",
     "matplotlib"
 ]
-requires-python = ">=3.8"
 
 [project.optional-dependencies]
 dev = [

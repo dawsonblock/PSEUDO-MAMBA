@@ -159,6 +159,14 @@ def train(
     # Init ActorCritic
     model = ActorCritic(model_core, act_dim=env.act_dim).to(device)
     
+    # Optional: Compile model for speedup
+    if hasattr(torch, "compile"):
+        print("[INFO] Compiling ActorCritic model with torch.compile...")
+        try:
+            model = torch.compile(model)
+        except Exception as e:
+            print(f"[WARNING] torch.compile failed: {e}. Continuing with eager mode.")
+    
     # Init PPO
     ppo = PPO(
         model, 

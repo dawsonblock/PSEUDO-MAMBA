@@ -10,9 +10,18 @@ __global__ void pseudo_mamba_forward_kernel(const scalar_t *__restrict__ x,
                                             scalar_t *__restrict__ y,
                                             int64_t N) {
   const int64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < N) {
-    const scalar_t v = x[idx] + h[idx];
-    y[idx] = tanh(v);
+  const int64_t stride = blockDim.x * gridDim.x;
+
+  // Vectorized access for float (4 elements at a time)
+  // Only supported if N is divisible by 4 and pointers are aligned
+  // For simplicity in this benchmark kernel, we'll stick to scalar grid-stride
+  // loop to avoid strict alignment requirements causing crashes in diverse
+  // envs. But we WILL use grid-stride loop which is better than simple if
+  // check.
+
+  for (int64_t i = idx; i < N; i += stride) {
+    const scalar_t v = x[i] + h[i];
+    y[i] = tanh(v);
   }
 }
 
@@ -21,10 +30,12 @@ __global__ void pseudo_mamba_forward_with_state_kernel(
     const scalar_t *__restrict__ x, const scalar_t *__restrict__ h,
     scalar_t *__restrict__ y, scalar_t *__restrict__ v_out, int64_t N) {
   const int64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < N) {
-    const scalar_t v = x[idx] + h[idx];
-    v_out[idx] = v;
-    y[idx] = tanh(v);
+  const int64_t stride = blockDim.x * gridDim.x;
+
+  for (int64_t i = idx; i < N; i += stride) {
+    const scalar_t v = x[i] + h[i];
+    v_out[i] = v;
+    y[i] = tanh(v);
   }
 }
 
@@ -33,12 +44,14 @@ __global__ void pseudo_mamba_backward_kernel(
     const scalar_t *__restrict__ grad_out, const scalar_t *__restrict__ y,
     scalar_t *__restrict__ grad_x, scalar_t *__restrict__ grad_h, int64_t N) {
   const int64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < N) {
-    const scalar_t yy = y[idx];
+  const int64_t stride = blockDim.x * gridDim.x;
+
+  for (int64_t i = idx; i < N; i += stride) {
+    const scalar_t yy = y[i];
     const scalar_t dy = static_cast<scalar_t>(1.0) - yy * yy;
-    const scalar_t g = grad_out[idx] * dy;
-    grad_x[idx] = g;
-    grad_h[idx] = g;
+    const scalar_t g = grad_out[i] * dy;
+    grad_x[i] = g;
+    grad_h[i] = g;
   }
 }
 
